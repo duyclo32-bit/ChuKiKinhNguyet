@@ -20,6 +20,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Theo dõi chu kỳ kinh nguyệt</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
   .cal-period { background: #f43f5e; color: #fff; }
   .cal-fertile { background: #a78bfa; color: #fff; }
@@ -34,6 +36,27 @@
 
   <h1 class="text-2xl font-bold text-rose-600 text-center mb-1">🌸 Theo dõi chu kỳ</h1>
   <p class="text-center text-sm text-gray-500 mb-4">Dữ liệu lưu trên máy, không gửi đi đâu</p>
+	  <div class="bg-white rounded-xl shadow p-4 mb-4">
+    <div id="syncOff">
+      <label class="block text-sm font-medium text-gray-700 mb-1">Đồng bộ</label>
+      <div class="flex gap-2">
+        <input id="roomInput" placeholder="Nhập mã ghép đôi" class="flex-1 border rounded-lg px-3 py-2 text-sm">
+        <button id="joinBtn" class="bg-rose-500 text-white px-3 py-2 rounded-lg text-sm">Ghép</button>
+      </div>
+      <button id="newBtn" class="mt-2 text-xs text-rose-500 underline">Tạo mã mới</button>
+    </div>
+    <div id="syncOn" class="hidden">
+      <div class="text-sm font-medium text-gray-700">Mã ghép đôi</div>
+      <div class="flex gap-2 items-center mt-1">
+        <code id="roomCode" class="flex-1 bg-rose-50 rounded-lg px-3 py-2 text-sm break-all"></code>
+        <button id="copyBtn" class="text-xs bg-rose-500 text-white px-3 py-2 rounded-lg">Copy</button>
+      </div>
+      <div class="flex justify-between items-center mt-2">
+        <span id="syncStatus" class="text-xs text-gray-400">Đang kết nối...</span>
+        <button id="leaveBtn" class="text-xs text-gray-400 underline">Ngắt</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Nhập ngày -->
   <div class="bg-white rounded-xl shadow p-4 mb-4">
@@ -104,7 +127,11 @@ const KEY = 'period_data';
 let viewDate = new Date();
 
 function load() { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
-function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+let dbRef = null, applying = false;
+function save(d) {
+  localStorage.setItem(KEY, JSON.stringify(d));
+  if (dbRef && !applying) dbRef.set({ list: d, updated: Date.now() }).catch(e => setStatus('Lỗi: ' + e.message));
+}
 function fmt(d) { return new Date(d).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' }); }
 function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 function dayKey(d) { return new Date(d).toISOString().slice(0,10); }
@@ -229,6 +256,52 @@ function render() {
 function changeMonth(d) { viewDate.setMonth(viewDate.getMonth() + d); render(); }
 
 // Set default input date to today
+// ====== DÁN firebaseConfig CỦA BẠN VÀO ĐÂY ======
+const firebaseConfig = { apiKey: "...", authDomain: "...", databaseURL: "...", projectId: "...", storageBucket: "...", messagingSenderId: "...", appId: "..." };
+// ================================================
+
+function setStatus(t) { document.getElementById('syncStatus').textContent = t; }
+function validRoom(c) { return /^[a-z0-9]{12,}$/.test(c); }
+function newRoom() { return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2, 6); }
+
+function connect(code) {
+  const db = firebase.database(firebase.initializeApp(firebaseConfig));
+  dbRef = db.ref('rooms/' + code);
+  document.getElementById('syncOff').classList.add('hidden');
+  document.getElementById('syncOn').classList.remove('hidden');
+  document.getElementById('roomCode').textContent = code;
+  dbRef.on('value', snap => {
+    const remote = snap.val();
+    if (remote) {
+      applying = true;
+      localStorage.setItem(KEY, JSON.stringify(remote.list || []));
+      render();
+      applying = false;
+    } else {
+      save(load());
+    }
+    setStatus('Đã đồng bộ ' + new Date().toLocaleTimeString('vi-VN'));
+  }, e => setStatus('Lỗi: ' + e.message));
+}
+
+document.getElementById('newBtn').onclick = () => { document.getElementById('roomInput').value = newRoom(); };
+document.getElementById('joinBtn').onclick = () => {
+  const c = document.getElementById('roomInput').value.trim().toLowerCase();
+  if (!validRoom(c)) return alert('Mã phải từ 12 ký tự, chữ thường và số');
+  localStorage.setItem('period_room', c);
+  location.reload();
+};
+document.getElementById('copyBtn').onclick = () => {
+  navigator.clipboard.writeText(localStorage.getItem('period_room')).then(() => setStatus('Đã copy mã'));
+};
+document.getElementById('leaveBtn').onclick = () => {
+  if (!confirm('Ngắt đồng bộ? Dữ liệu trên máy vẫn giữ nguyên.')) return;
+  localStorage.removeItem('period_room');
+  location.reload();
+};
+
+const savedRoom = localStorage.getItem('period_room');
+if (savedRoom && validRoom(savedRoom)) connect(savedRoom);
 document.getElementById('dateInput').valueAsDate = new Date();
 render();
 </script>
