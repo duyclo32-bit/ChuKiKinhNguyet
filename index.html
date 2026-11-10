@@ -1,316 +1,492 @@
-
-                        <!DOCTYPE html>
-                        <html lang="en">
-                        <head>
-                            <meta charset="UTF-8">
-                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-							<style>
-								body {
-									background-color: white; /* Ensure the iframe has a white background */
-								}
-
-								
-							</style>
-                        </head>
-                        <body>
-                            <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Theo dõi chu kỳ kinh nguyệt</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<title>Chu kỳ kinh nguyệt</title>
 <style>
-  .cal-period { background: #f43f5e; color: #fff; }
-  .cal-fertile { background: #a78bfa; color: #fff; }
-  .cal-ovulation { background: #7c3aed; color: #fff; }
-  .cal-predict { background: #fb923c; color: #fff; }
-  .cal-today { outline: 2px solid #f43f5e; outline-offset: -2px; }
-  .cal-day { width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; border-radius: 9999px; font-size: .85rem; cursor: default; }
+/* ── Tokens ───────────────────────────────────────────── */
+:root {
+  --n-50:  hsl(340 20% 98%);
+  --n-100: hsl(340 15% 94%);
+  --n-200: hsl(340 12% 88%);
+  --n-300: hsl(340 10% 76%);
+  --n-400: hsl(340  8% 58%);
+  --n-700: hsl(340  8% 22%);
+  --n-900: hsl(340 10% 11%);
+
+  --r-50:  hsl(343 100% 97%);
+  --r-100: hsl(343  90% 93%);
+  --r-200: hsl(343  80% 85%);
+  --r-500: hsl(343  70% 54%);
+  --r-600: hsl(343  66% 46%);
+
+  --p-200: hsl(268  60% 88%);
+  --p-500: hsl(268  52% 60%);
+  --p-700: hsl(268  58% 42%);
+
+  --o-200: hsl(26   90% 88%);
+  --o-500: hsl(26   82% 56%);
+  --o-700: hsl(26   76% 40%);
+
+  --bg:        var(--n-50);
+  --surface:   hsl(0 0% 100%);
+  --border:    var(--n-200);
+  --muted:     var(--n-400);
+  --body:      var(--n-700);
+  --heading:   var(--n-900);
+  --accent:    var(--r-500);
+  --accent-dk: var(--r-600);
+
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-8:32px;
+  --r-sm:6px; --r-md:10px; --r-lg:16px; --r-full:999px;
+  --shadow-sm: 0 1px 2px hsl(340 15% 15%/.06), 0 1px 4px hsl(340 15% 15%/.04);
+  --t-fast:120ms ease; --t-base:200ms ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:      hsl(340 10% 9%);
+    --surface: hsl(340  8% 13%);
+    --border:  hsl(340  8% 20%);
+    --muted:   hsl(340  6% 48%);
+    --body:    hsl(340  6% 80%);
+    --heading: hsl(340  4% 95%);
+    --r-50:    hsl(343 30% 17%);
+    --r-100:   hsl(343 25% 21%);
+    --r-200:   hsl(343 22% 28%);
+    --p-200:   hsl(268 28% 24%);
+    --o-200:   hsl(26  32% 20%);
+    --shadow-sm: 0 1px 3px hsl(0 0% 0%/.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after { transition-duration:.01ms !important; animation-duration:.01ms !important; }
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html { font-size:16px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ───────────────────────────────────────────── */
+.app { max-width:440px; margin:0 auto; padding:var(--s-4) var(--s-4) var(--s-8); }
+
+/* ── Header ───────────────────────────────────────────── */
+.header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: var(--s-4) 0 var(--s-5);
+}
+.header__title {
+  font-size:1.2rem; font-weight:700; color:var(--heading);
+  letter-spacing:-.02em; display:flex; align-items:center; gap:var(--s-2);
+}
+.sync-pill {
+  display:inline-flex; align-items:center; gap:var(--s-1);
+  font-size:.72rem; font-family:inherit;
+  padding:var(--s-1) var(--s-3);
+  border-radius:var(--r-full);
+  border:1px solid var(--border);
+  color:var(--muted); cursor:pointer;
+  transition:background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+  background:var(--surface);
+}
+.sync-pill:hover { background:var(--n-100); }
+.sync-pill.connected { border-color:var(--r-200); color:var(--accent); background:var(--r-50); }
+.sync-pill:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.sync-dot {
+  width:6px; height:6px; border-radius:var(--r-full);
+  background:var(--muted); flex-shrink:0;
+  transition:background var(--t-fast);
+}
+.sync-pill.connected .sync-dot { background:var(--accent); }
+
+/* ── Card ─────────────────────────────────────────────── */
+.card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  padding:var(--s-5);
+  box-shadow:var(--shadow-sm);
+  margin-bottom:var(--s-4);
+}
+.card__label {
+  font-size:.68rem; font-weight:700;
+  letter-spacing:.07em; text-transform:uppercase;
+  color:var(--muted); margin-bottom:var(--s-3);
+}
+
+/* ── Sync card ────────────────────────────────────────── */
+.sync-form-row { display:flex; gap:var(--s-2); margin-bottom:var(--s-2); }
+.sync-hint-row { display:flex; justify-content:space-between; align-items:center; }
+.sync-room-display { display:flex; align-items:center; gap:var(--s-2); }
+.sync-room-code {
+  flex:1; font-family:ui-monospace,'Cascadia Code',monospace;
+  font-size:.8rem; background:var(--r-50); color:var(--accent-dk);
+  border-radius:var(--r-sm); padding:var(--s-2) var(--s-3);
+  word-break:break-all; border:1px solid var(--r-200);
+}
+.sync-status-row { display:flex; justify-content:space-between; align-items:center; margin-top:var(--s-3); }
+.sync-status-text { font-size:.72rem; color:var(--muted); }
+
+/* ── Inputs ───────────────────────────────────────────── */
+.input-row { display:flex; gap:var(--s-2); align-items:stretch; }
+.field {
+  border:1px solid var(--border); border-radius:var(--r-sm);
+  padding:var(--s-2) var(--s-3); font-size:.875rem;
+  color:var(--body); background:var(--surface);
+  transition:border-color var(--t-fast), box-shadow var(--t-fast);
+  outline:none; font-family:inherit;
+}
+.field:focus { border-color:var(--accent); box-shadow:0 0 0 3px hsl(343 70% 54%/.15); }
+.field-date { flex:1; min-width:0; }
+.field-num  { width:70px; }
+.field-sync { flex:1; }
+.hint { font-size:.7rem; color:var(--muted); margin-top:var(--s-2); }
+
+/* ── Buttons ──────────────────────────────────────────── */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  border:none; border-radius:var(--r-sm);
+  font-size:.875rem; font-weight:500;
+  cursor:pointer; padding:var(--s-2) var(--s-4);
+  transition:background var(--t-fast), opacity var(--t-fast);
+  font-family:inherit; white-space:nowrap; line-height:1.4;
+}
+.btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.btn:active { opacity:.82; }
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:hover { background:var(--accent-dk); }
+.btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--border); }
+.btn-ghost:hover { background:var(--n-100); }
+.btn-sm { padding:var(--s-1) var(--s-3); font-size:.75rem; }
+.btn-link {
+  background:none; border:none; color:var(--accent);
+  font-size:.72rem; cursor:pointer; padding:0;
+  font-family:inherit; text-decoration:underline; text-underline-offset:2px;
+}
+.btn-link:hover { opacity:.7; }
+.btn-link.muted { color:var(--muted); }
+.btn-remove { background:none; border:none; color:var(--muted); font-size:.72rem; cursor:pointer; font-family:inherit; padding:var(--s-1); border-radius:var(--r-sm); }
+.btn-remove:hover { color:hsl(0 60% 52%); background:hsl(0 60% 52%/.08); }
+
+/* ── Stats ────────────────────────────────────────────── */
+.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--s-3); }
+.stat-cell {
+  background:var(--bg); border:1px solid var(--border);
+  border-radius:var(--r-md); padding:var(--s-4); text-align:center;
+}
+.stat-label { font-size:.68rem; color:var(--muted); font-weight:600; letter-spacing:.03em; margin-bottom:var(--s-1); }
+.stat-value { font-size:1.2rem; font-weight:700; color:var(--heading); line-height:1.2; }
+.stat-value.rose { color:var(--accent); }
+.stat-value.purple { color:var(--p-700); }
+.stat-value.orange { color:var(--o-700); }
+.stat-value.sm { font-size:.9rem; }
+.stat-sub { font-size:.68rem; color:var(--muted); margin-top:2px; }
+
+@media (prefers-color-scheme: dark) {
+  .stat-value.purple { color:var(--p-500); }
+  .stat-value.orange { color:var(--o-500); }
+}
+
+/* ── Legend ───────────────────────────────────────────── */
+.legend {
+  display:flex; flex-wrap:wrap; gap:var(--s-2) var(--s-5);
+  padding: 0 var(--s-1) var(--s-4);
+}
+.legend-item { display:flex; align-items:center; gap:var(--s-1); font-size:.7rem; color:var(--muted); }
+.legend-dot { width:8px; height:8px; border-radius:var(--r-full); flex-shrink:0; }
+
+/* ── Calendar ─────────────────────────────────────────── */
+.cal-nav-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--s-4); }
+.cal-month { font-size:.975rem; font-weight:600; color:var(--heading); }
+.cal-nav-btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:32px; height:32px; border-radius:var(--r-sm);
+  border:1px solid var(--border); background:var(--surface);
+  color:var(--muted); cursor:pointer; font-size:1.1rem; line-height:1;
+  transition:background var(--t-fast), color var(--t-fast);
+}
+.cal-nav-btn:hover { background:var(--n-100); color:var(--accent); }
+.cal-nav-btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.cal-dow {
+  display:grid; grid-template-columns:repeat(7,1fr);
+  margin-bottom:var(--s-1);
+}
+.cal-dow span {
+  text-align:center; font-size:.65rem; font-weight:700;
+  letter-spacing:.05em; color:var(--muted); padding:var(--s-1) 0;
+}
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.cal-day {
+  aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+  border-radius:var(--r-sm); font-size:.78rem; color:var(--body);
+  transition:background var(--t-fast);
+}
+.cal-day.today { font-weight:700; box-shadow:inset 0 0 0 1.5px var(--accent); color:var(--accent); }
+.cal-day.period   { background:var(--r-500); color:#fff; }
+.cal-day.fertile  { background:var(--p-500); color:#fff; }
+.cal-day.ovulation{ background:var(--p-700); color:#fff; }
+.cal-day.predict  { background:var(--o-500); color:#fff; }
+.cal-day.today.period,
+.cal-day.today.fertile,
+.cal-day.today.ovulation,
+.cal-day.today.predict { box-shadow:inset 0 0 0 2px rgba(255,255,255,.7); }
+
+/* ── History ──────────────────────────────────────────── */
+.history-item {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:var(--s-3) 0; border-bottom:1px solid var(--border);
+  font-size:.875rem;
+}
+.history-item:last-child { border-bottom:none; }
+.history-left { display:flex; align-items:center; gap:var(--s-2); }
+.history-dot {
+  width:8px; height:8px; border-radius:var(--r-full);
+  background:var(--accent); flex-shrink:0;
+}
+.history-date { font-weight:600; color:var(--heading); }
+.history-dur  { font-size:.72rem; color:var(--muted); }
+.empty-state  { text-align:center; color:var(--muted); font-size:.875rem; padding:var(--s-8) 0; }
+
+/* ── Backup row ───────────────────────────────────────── */
+.backup-row {
+  display:flex; gap:var(--s-2);
+  margin-top:var(--s-4); padding-top:var(--s-4);
+  border-top:1px solid var(--border);
+}
+.backup-row .btn { flex:1; }
 </style>
 </head>
-<body class="bg-rose-50 min-h-screen">
-<div class="max-w-md mx-auto p-4 pb-20">
+<body>
+<div class="app">
 
-  <h1 class="text-2xl font-bold text-rose-600 text-center mb-1">🌸 Theo dõi chu kỳ</h1>
-  <p class="text-center text-sm text-gray-500 mb-4">Dữ liệu lưu trên máy, không gửi đi đâu</p>
-	  <div class="bg-white rounded-xl shadow p-4 mb-4">
-    <div id="syncOff">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Đồng bộ</label>
-      <div class="flex gap-2">
-        <input id="roomInput" placeholder="Nhập mã ghép đôi" class="flex-1 border rounded-lg px-3 py-2 text-sm">
-        <button id="joinBtn" class="bg-rose-500 text-white px-3 py-2 rounded-lg text-sm">Ghép</button>
-      </div>
-      <button id="newBtn" class="mt-2 text-xs text-rose-500 underline">Tạo mã mới</button>
-    </div>
-    <div id="syncOn" class="hidden">
-      <div class="text-sm font-medium text-gray-700">Mã ghép đôi</div>
-      <div class="flex gap-2 items-center mt-1">
-        <code id="roomCode" class="flex-1 bg-rose-50 rounded-lg px-3 py-2 text-sm break-all"></code>
-        <button id="copyBtn" class="text-xs bg-rose-500 text-white px-3 py-2 rounded-lg">Copy</button>
-      </div>
-      <div class="flex justify-between items-center mt-2">
-        <span id="syncStatus" class="text-xs text-gray-400">Đang kết nối...</span>
-        <button id="leaveBtn" class="text-xs text-gray-400 underline">Ngắt</button>
-      </div>
-    </div>
-  </div>
+  <!-- Header -->
+  <header class="header">
+    <h1 class="header__title">🌸 Chu kỳ</h1>
+    <button class="sync-pill" id="syncPillBtn">
+      <span class="sync-dot" id="syncDot"></span>
+      <span id="syncPillLabel">Chưa đồng bộ</span>
+    </button>
+  </header>
 
-  <!-- Nhập ngày -->
-  <div class="bg-white rounded-xl shadow p-4 mb-4">
-    <label class="block text-sm font-medium text-gray-700 mb-1">Ngày bắt đầu kỳ kinh</label>
-    <div class="flex gap-2">
-      <input type="date" id="dateInput" class="flex-1 border rounded-lg px-3 py-2 text-sm">
-      <input type="number" id="durationInput" min="1" max="14" value="5" class="w-20 border rounded-lg px-3 py-2 text-sm" title="Số ngày hành kinh">
-      <button onclick="addPeriod()" class="bg-rose-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-rose-600">Thêm</button>
+  <!-- Sync card -->
+  <div class="card" id="syncCard" style="display:none">
+    <div id="syncOffView">
+      <p class="card__label">Đồng bộ 2 máy</p>
+      <div class="sync-form-row">
+        <input id="roomInput" class="field field-sync" type="text"
+               placeholder="Nhập hoặc tạo mã ghép đôi…" autocomplete="off" spellcheck="false">
+        <button class="btn btn-primary" id="joinBtn">Ghép</button>
+      </div>
+      <div class="sync-hint-row">
+        <span class="hint" style="margin:0">Hai máy cùng mã → tự đồng bộ</span>
+        <button class="btn-link" id="newRoomBtn">Tạo mã mới</button>
+      </div>
     </div>
-    <p class="text-xs text-gray-400 mt-1">Ô số = số ngày hành kinh (mặc định 5)</p>
-  </div>
-
-  <!-- Thông tin -->
-  <div id="info" class="bg-white rounded-xl shadow p-4 mb-4 hidden">
-    <div class="grid grid-cols-2 gap-3 text-sm">
-      <div class="bg-rose-50 rounded-lg p-3 text-center">
-        <div class="text-xs text-gray-500">Chu kỳ TB</div>
-        <div id="avgCycle" class="text-xl font-bold text-rose-600">--</div>
-        <div class="text-xs text-gray-400">ngày</div>
+    <div id="syncOnView" style="display:none">
+      <p class="card__label">Đang đồng bộ</p>
+      <div class="sync-room-display">
+        <code class="sync-room-code" id="roomCodeDisplay"></code>
+        <button class="btn btn-ghost btn-sm" id="copyRoomBtn">Copy</button>
       </div>
-      <div class="bg-orange-50 rounded-lg p-3 text-center">
-        <div class="text-xs text-gray-500">Dự kiến kỳ tới</div>
-        <div id="nextPeriod" class="text-lg font-bold text-orange-500">--</div>
-        <div id="nextCountdown" class="text-xs text-gray-400"></div>
-      </div>
-      <div class="bg-purple-50 rounded-lg p-3 text-center">
-        <div class="text-xs text-gray-500">Ngày rụng trứng</div>
-        <div id="ovuDay" class="text-lg font-bold text-purple-600">--</div>
-      </div>
-      <div class="bg-purple-50 rounded-lg p-3 text-center">
-        <div class="text-xs text-gray-500">Cửa sổ dễ thụ thai</div>
-        <div id="fertileWindow" class="text-sm font-bold text-purple-500">--</div>
+      <div class="sync-status-row">
+        <span class="sync-status-text" id="syncStatusText">Đang kết nối…</span>
+        <button class="btn-link muted" id="leaveRoomBtn">Ngắt</button>
       </div>
     </div>
   </div>
 
-  <!-- Chú thích -->
-  <div class="flex flex-wrap gap-3 text-xs mb-3 justify-center">
-    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>Hành kinh</span>
-    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-purple-400 inline-block"></span>Dễ thụ thai</span>
-    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-purple-700 inline-block"></span>Rụng trứng</span>
-    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-orange-400 inline-block"></span>Dự kiến kỳ tới</span>
+  <!-- Add entry -->
+  <div class="card">
+    <p class="card__label">Thêm kỳ kinh</p>
+    <div class="input-row">
+      <input type="date" id="dateInput" class="field field-date">
+      <input type="number" id="durationInput" class="field field-num"
+             min="1" max="14" value="5" title="Số ngày hành kinh">
+      <button class="btn btn-primary" id="addBtn">Thêm</button>
+    </div>
+    <p class="hint">Ô số = số ngày hành kinh (mặc định 5)</p>
   </div>
 
-  <!-- Lịch -->
-  <div class="bg-white rounded-xl shadow p-4 mb-4">
-    <div class="flex justify-between items-center mb-3">
-      <button onclick="changeMonth(-1)" class="text-rose-500 text-xl px-2">‹</button>
-      <span id="monthLabel" class="font-semibold text-gray-700"></span>
-      <button onclick="changeMonth(1)" class="text-rose-500 text-xl px-2">›</button>
+  <!-- Stats -->
+  <div class="card" id="statsCard" style="display:none">
+    <div class="stats-grid">
+      <div class="stat-cell">
+        <div class="stat-label">Chu kỳ TB</div>
+        <div class="stat-value rose" id="statAvg">--</div>
+        <div class="stat-sub">ngày</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Dự kiến kỳ tới</div>
+        <div class="stat-value orange sm" id="statNext">--</div>
+        <div class="stat-sub" id="statCountdown"> </div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Rụng trứng</div>
+        <div class="stat-value purple sm" id="statOvu">--</div>
+        <div class="stat-sub">dự kiến</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Dễ thụ thai</div>
+        <div class="stat-value purple sm" id="statFertile" style="font-size:.78rem">--</div>
+        <div class="stat-sub">cửa sổ 6 ngày</div>
+      </div>
     </div>
-    <div class="grid grid-cols-7 text-center text-xs text-gray-400 mb-1">
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <span class="legend-item"><span class="legend-dot" style="background:var(--r-500)"></span>Hành kinh</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--p-500)"></span>Dễ thụ thai</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--p-700)"></span>Rụng trứng</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--o-500)"></span>Dự kiến</span>
+  </div>
+
+  <!-- Calendar -->
+  <div class="card">
+    <div class="cal-nav-row">
+      <button class="cal-nav-btn" id="prevMonthBtn" aria-label="Tháng trước">‹</button>
+      <span class="cal-month" id="calMonthLabel"></span>
+      <button class="cal-nav-btn" id="nextMonthBtn" aria-label="Tháng sau">›</button>
+    </div>
+    <div class="cal-dow">
       <span>CN</span><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span>
     </div>
-    <div id="calGrid" class="grid grid-cols-7 gap-1 justify-items-center"></div>
+    <div class="cal-grid" id="calGrid"></div>
   </div>
 
-  <!-- Lịch sử -->
-  <div class="bg-white rounded-xl shadow p-4">
-    <h2 class="font-semibold text-gray-700 mb-2">Lịch sử</h2>
-    <div id="history" class="text-sm text-gray-600 space-y-1"></div>
-    <div id="emptyMsg" class="text-sm text-gray-400 italic">Chưa có dữ liệu</div>
+  <!-- History + Backup -->
+  <div class="card">
+    <p class="card__label">Lịch sử</p>
+    <div id="historyList"></div>
+    <div class="empty-state" id="emptyState">Chưa có dữ liệu — thêm kỳ kinh đầu tiên</div>
+    <div class="backup-row">
+      <button class="btn btn-ghost btn-sm" id="exportBtn">↓ Sao lưu</button>
+      <button class="btn btn-ghost btn-sm" id="importBtn">↑ Phục hồi</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+    </div>
   </div>
+
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
-const KEY = 'period_data';
+// ════════════════════════════════════════════════
+// DÁN firebaseConfig CỦA BẠN VÀO ĐÂY
+// ════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "...",
+  authDomain:        "....firebaseapp.com",
+  databaseURL:       "https://....asia-southeast1.firebasedatabase.app",
+  projectId:         "...",
+  storageBucket:     "....appspot.com",
+  messagingSenderId: "...",
+  appId:             "..."
+};
+// ════════════════════════════════════════════════
+
+const KEY      = 'period_data';
+const ROOM_KEY = 'period_room';
+
 let viewDate = new Date();
+let dbRef    = null;
+let applying = false;
 
+// ── Date utils ─────────────────────────────────
+function px(s)         { return new Date(typeof s === 'string' ? s + 'T00:00:00' : s); }
+function pad(n)        { return String(n).padStart(2, '0'); }
+function dayKey(d)     { const x = px(d); return `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`; }
+function addDays(d, n) { const r = px(d); r.setDate(r.getDate()+n); return r; }
+function fmt(d)        { return px(d).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' }); }
+function diffDays(a,b) { return Math.round((px(dayKey(a)) - px(dayKey(b))) / 864e5); }
+
+// ── Storage ────────────────────────────────────
 function load() { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
-let dbRef = null, applying = false;
-function save(d) {
-  localStorage.setItem(KEY, JSON.stringify(d));
-  if (dbRef && !applying) dbRef.set({ list: d, updated: Date.now() }).catch(e => setStatus('Lỗi: ' + e.message));
-}
-function fmt(d) { return new Date(d).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' }); }
-function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
-function dayKey(d) { return new Date(d).toISOString().slice(0,10); }
-function diffDays(a, b) { return Math.round((new Date(a) - new Date(b)) / 864e5); }
-
-function addPeriod() {
-  const input = document.getElementById('dateInput');
-  const dur = parseInt(document.getElementById('durationInput').value) || 5;
-  if (!input.value) return;
-  const data = load();
-  if (data.find(p => p.date === input.value)) return alert('Ngày này đã được ghi');
-  data.push({ date: input.value, duration: Math.min(14, Math.max(1, dur)) });
-  data.sort((a, b) => a.date.localeCompare(b.date));
-  save(data);
-  input.value = '';
-  render();
+function save(list) {
+  localStorage.setItem(KEY, JSON.stringify(list));
+  if (dbRef && !applying)
+    dbRef.set({ list, updated: Date.now() })
+         .catch(e => setSyncStatus('Lỗi lưu: ' + e.message));
 }
 
-function removePeriod(date) {
-  if (!confirm('Xoá ngày ' + fmt(date) + '?')) return;
-  save(load().filter(p => p.date !== date));
-  render();
-}
-
+// ── Stats ──────────────────────────────────────
 function calcStats(data) {
   if (!data.length) return null;
-  const sorted = [...data].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...data].sort((a,b) => a.date.localeCompare(b.date));
   const cycles = [];
   for (let i = 1; i < sorted.length; i++) {
     const d = diffDays(sorted[i].date, sorted[i-1].date);
-    if (d >= 15 && d <= 60) cycles.push(d);
+    if (d >= 15 && d <= 65) cycles.push(d);
   }
-  const avg = cycles.length ? Math.round(cycles.reduce((s,v) => s+v, 0) / cycles.length) : 28;
-  const last = sorted[sorted.length - 1];
-  const nextStart = addDays(last.date, avg);
-  const ovulation = addDays(nextStart, -14);
+  const avg          = cycles.length ? Math.round(cycles.reduce((s,v)=>s+v,0)/cycles.length) : 28;
+  const last         = sorted[sorted.length-1];
+  const nextStart    = addDays(last.date, avg);
+  const ovulation    = addDays(nextStart, -14);
   const fertileStart = addDays(ovulation, -4);
-  const fertileEnd = addDays(ovulation, 1);
-  return { avg, last, nextStart, ovulation, fertileStart, fertileEnd, cycles, sorted };
+  const fertileEnd   = addDays(ovulation, 1);
+  return { avg, last, nextStart, ovulation, fertileStart, fertileEnd, cycles };
 }
 
-function getMarkedDays(data, stats) {
+function getMarks(data, stats) {
   const marks = {};
   data.forEach(p => {
-    for (let i = 0; i < p.duration; i++) {
-      marks[dayKey(addDays(p.date, i))] = 'period';
-    }
+    for (let i = 0; i < p.duration; i++) marks[dayKey(addDays(p.date, i))] = 'period';
   });
-  if (stats) {
-    // dự kiến kỳ tới
-    const dur = stats.last.duration || 5;
-    for (let i = 0; i < dur; i++) marks[dayKey(addDays(stats.nextStart, i))] = 'predict';
-    // fertile window
-    let d = new Date(stats.fertileStart);
-    while (d <= stats.fertileEnd) {
-      const k = dayKey(d);
-      if (!marks[k] || marks[k] === 'predict') marks[k] = 'fertile';
-      d = addDays(d, 1);
-    }
-    marks[dayKey(stats.ovulation)] = 'ovulation';
+  if (!stats) return marks;
+  const dur = stats.last.duration || 5;
+  for (let i = 0; i < dur; i++) {
+    const k = dayKey(addDays(stats.nextStart, i));
+    if (!marks[k]) marks[k] = 'predict';
   }
+  let d = new Date(stats.fertileStart);
+  while (d <= stats.fertileEnd) {
+    const k = dayKey(d);
+    if (!marks[k]) marks[k] = 'fertile';
+    d = addDays(d, 1);
+  }
+  marks[dayKey(stats.ovulation)] = 'ovulation';
   return marks;
+}
+
+// ── Render ─────────────────────────────────────
+function render() {
+  const data  = load();
+  const stats = calcStats(data);
+  renderCalendar(getMarks(data, stats));
+  renderStats(stats);
+  renderHistory(data);
 }
 
 function renderCalendar(marks) {
   const y = viewDate.getFullYear(), m = viewDate.getMonth();
-  document.getElementById('monthLabel').textContent =
-    `Tháng ${m + 1} / ${y}`;
-  const first = new Date(y, m, 1).getDay();
-  const days = new Date(y, m + 1, 0).getDate();
-  const today = dayKey(new Date());
-  let html = '<div class="cal-day"></div>'.repeat(first);
+  document.getElementById('calMonthLabel').textContent = `Tháng ${m+1} · ${y}`;
+  const firstDow = new Date(y, m, 1).getDay();
+  const days     = new Date(y, m+1, 0).getDate();
+  const today    = dayKey(new Date());
+  let html = '<div class="cal-day"></div>'.repeat(firstDow);
   for (let d = 1; d <= days; d++) {
-    const k = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    let cls = 'cal-day ';
-    if (marks[k] === 'period') cls += 'cal-period ';
-    else if (marks[k] === 'ovulation') cls += 'cal-ovulation ';
-    else if (marks[k] === 'fertile') cls += 'cal-fertile ';
-    else if (marks[k] === 'predict') cls += 'cal-predict ';
-    if (k === today) cls += 'cal-today ';
+    const k = `${y}-${pad(m+1)}-${pad(d)}`;
+    let cls = 'cal-day';
+    if (marks[k]) cls += ` ${marks[k]}`;
+    if (k === today) cls += ' today';
     html += `<div class="${cls}">${d}</div>`;
   }
   document.getElementById('calGrid').innerHTML = html;
 }
 
-function render() {
-  const data = load();
-  const stats = calcStats(data);
-  const marks = getMarkedDays(data, stats);
-  renderCalendar(marks);
-
-  const info = document.getElementById('info');
-  if (stats) {
-    info.classList.remove('hidden');
-    document.getElementById('avgCycle').textContent = stats.cycles.length ? stats.avg : '~28';
-    document.getElementById('nextPeriod').textContent = fmt(stats.nextStart);
-    const daysLeft = diffDays(stats.nextStart, new Date());
-    document.getElementById('nextCountdown').textContent =
-      daysLeft > 0 ? `Còn ${daysLeft} ngày` : daysLeft === 0 ? 'Hôm nay' : `Trễ ${-daysLeft} ngày`;
-    document.getElementById('ovuDay').textContent = fmt(stats.ovulation);
-    document.getElementById('fertileWindow').textContent = fmt(stats.fertileStart) + ' → ' + fmt(stats.fertileEnd);
-  } else {
-    info.classList.add('hidden');
-  }
-
-  const hist = document.getElementById('history');
-  const empty = document.getElementById('emptyMsg');
-  if (data.length) {
-    empty.classList.add('hidden');
-    hist.innerHTML = [...data].reverse().map(p =>
-      `<div class="flex justify-between items-center py-1 border-b last:border-0">
-        <span>🔴 ${fmt(p.date)} — ${p.duration} ngày</span>
-        <button onclick="removePeriod('${p.date}')" class="text-red-400 hover:text-red-600 text-xs">Xoá</button>
-      </div>`
-    ).join('');
-  } else {
-    empty.classList.remove('hidden');
-    hist.innerHTML = '';
-  }
-}
-
-function changeMonth(d) { viewDate.setMonth(viewDate.getMonth() + d); render(); }
-
-// Set default input date to today
-// ====== DÁN firebaseConfig CỦA BẠN VÀO ĐÂY ======
-const firebaseConfig = { apiKey: "...", authDomain: "...", databaseURL: "...", projectId: "...", storageBucket: "...", messagingSenderId: "...", appId: "..." };
-// ================================================
-
-function setStatus(t) { document.getElementById('syncStatus').textContent = t; }
-function validRoom(c) { return /^[a-z0-9]{12,}$/.test(c); }
-function newRoom() { return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2, 6); }
-
-function connect(code) {
-  const db = firebase.database(firebase.initializeApp(firebaseConfig));
-  dbRef = db.ref('rooms/' + code);
-  document.getElementById('syncOff').classList.add('hidden');
-  document.getElementById('syncOn').classList.remove('hidden');
-  document.getElementById('roomCode').textContent = code;
-  dbRef.on('value', snap => {
-    const remote = snap.val();
-    if (remote) {
-      applying = true;
-      localStorage.setItem(KEY, JSON.stringify(remote.list || []));
-      render();
-      applying = false;
-    } else {
-      save(load());
-    }
-    setStatus('Đã đồng bộ ' + new Date().toLocaleTimeString('vi-VN'));
-  }, e => setStatus('Lỗi: ' + e.message));
-}
-
-document.getElementById('newBtn').onclick = () => { document.getElementById('roomInput').value = newRoom(); };
-document.getElementById('joinBtn').onclick = () => {
-  const c = document.getElementById('roomInput').value.trim().toLowerCase();
-  if (!validRoom(c)) return alert('Mã phải từ 12 ký tự, chữ thường và số');
-  localStorage.setItem('period_room', c);
-  location.reload();
-};
-document.getElementById('copyBtn').onclick = () => {
-  navigator.clipboard.writeText(localStorage.getItem('period_room')).then(() => setStatus('Đã copy mã'));
-};
-document.getElementById('leaveBtn').onclick = () => {
-  if (!confirm('Ngắt đồng bộ? Dữ liệu trên máy vẫn giữ nguyên.')) return;
-  localStorage.removeItem('period_room');
-  location.reload();
-};
-
-const savedRoom = localStorage.getItem('period_room');
-if (savedRoom && validRoom(savedRoom)) connect(savedRoom);
-document.getElementById('dateInput').valueAsDate = new Date();
-render();
-</script>
-</body>
-</html>
-
-							<script>
-                            	
-							</script>
-                        </body>
-                        </html>
-                    
+function renderStats(stats) {
+  const card = document.getElementById('statsCard');
+  if (!stats) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  document.getElementById('statAvg').textContent  = stats.cycles.length ? stats.avg : '~28';
+  document.getElementById('statNext').textContent = fmt(stats.nextStart);
+  document.getElementById('statOvu').textContent  = fmt(stats.ovulation);
+  document.getElementById('statFertile').
